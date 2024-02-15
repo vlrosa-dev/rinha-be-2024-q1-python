@@ -12,8 +12,8 @@ CREATE TABLE IF NOT EXISTS clientes_transacoes (
     "tipo"           VARCHAR(1) NOT NULL,
     "descricao"      VARCHAR(10) NOT NULL,
     "realizada_em"   TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    "client_id"      INT NOT NULL,
-    CONSTRAINT "clients_fk" FOREIGN KEY ("client_id") REFERENCES clients("id")
+    "id_cliente"      INT NOT NULL,
+    CONSTRAINT "clients_fk" FOREIGN KEY ("id_cliente") REFERENCES clients("id")
 );
 
 DO $$

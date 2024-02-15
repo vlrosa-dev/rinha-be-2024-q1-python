@@ -38,11 +38,11 @@ async def transacoes(id: int, transacao: ClienteTransacaoCreate):
         )
     
     ##### Verifica se cliente existe na base de dados
-    query_select_cliente = f"""
+    query_select_cliente = """
         SELECT * FROM clientes 
-        WHERE id={id}
+        WHERE id=:id
     """
-    rows_cliente = await database.fetch_one(query=query_select_cliente)
+    rows_cliente = await database.fetch_one(query=query_select_cliente), { "id": id }
     if len(rows_cliente) < 1:
         raise HTTPException(status_code=404, detail=f"Cliente ({ id }) não encontrado.")
 
