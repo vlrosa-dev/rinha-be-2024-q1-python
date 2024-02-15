@@ -110,33 +110,49 @@ async def transacoes(id: int, transacao: ClienteTransacaoCreate):
         }
     )
 
-# @app.post(path="/clientes/{id}/extrato")
-# async def extrato(session: Session_Db, id: int):
-#     cliente = session\
-#         .query(Clientes)\
-#         .filter(Clientes.id == id)\
-#         .first()
-
-#     if not cliente:
-#         raise HTTPException(
-#             status_code=404, detail=f"Cliente { id } não encontrado"
-#         )
+@app.post(path="/clientes/{id}/extrato")
+async def extrato(id: int):
+    ##### Verifica se cliente existe
+    query_select_cliente = """
+        SELECT * FROM clientes 
+        WHERE id=:id
+    """
+    cliente = await database.fetch_one(query_select_cliente, { "id": id })
+    if len(cliente) < 1:
+        raise HTTPException(
+            status_code=404, detail=f"Cliente { id } não encontrado"
+        )
     
-#     clientes_transacoes = session\
-#         .query(ClientesTransacoes)\
-#         .filter(ClientesTransacoes.id_cliente == id)\
-#         .all()
+    ##### Consulta transacoes do cliente
+    ultimas_transacoes = []
+    clientes_transacoes = """
+        SELECT valor, tipo, descricao, realizada_em  
+        FROM clientes_transacoes
+        WHERE id_cliente=:id
+        ORDER BY realizada_em DESC
+    """
+    result_transacoes = await database.fetch_all(clientes_transacoes, { "id": id })
+    if len(result_transacoes) > 0:
+        for item in result_transacoes:
+            ultimas_transacoes.append(
+                {
+                    "valor": item[0],
+                    "tipo": item[1],
+                    "descricao": item[2],
+                    "realizada_em": item[3]
+                }
+            )
     
-#     conteudo_json = {
-#         "saldo": {
-#             "total": cliente.saldo,
-#             "data_extrato": str(datetime.utcnow()),
-#             "limite": cliente.limite
-#         },
-#         "ultimas_transacoes": jsonable_encoder(clientes_transacoes)
-#     }
+    ##### Configura JSON de resposta
+    result_json = {
+        "saldo": {
+            "total": cliente[3],
+            "data_extrato": str(datetime.utcnow()),
+            "limite": cliente[2]
+        }, "ultimas_transacoes": ultimas_transacoes
+    }
 
-#     return JSONResponse(content=conteudo_json, status_code=200)
+    return JSONResponse(content=result_json, status_code=200)
 
 if __name__ == '__main__':
     uvicorn.run(
