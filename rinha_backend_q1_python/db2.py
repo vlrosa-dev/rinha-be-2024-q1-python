@@ -29,6 +29,25 @@ def create_tables():
         PRIMARY KEY (id),
         CONSTRAINT "clientes_fk" FOREIGN KEY ("id_cliente") REFERENCES clientes("id")
     );""")
+    connection.close()
+
+def insert_tables():
+    connection = create_connection()
+    cursor = connection.cursor()
+    cursor.execute(
+    """
+    INSERT INTO clientes ("id", "nome", "limite")
+    VALUES
+        (1, 'grupo avanti', 1000 * 100),
+        (2, 'grupo itau', 800 * 100),
+        (3, 'grupo caixa', 10000 * 100),
+        (4, 'padaria do zé', 100000 * 100),
+        (5, 'padaria do tonico', 5000 * 100);
+    """
+    )
+    connection.commit()
+    connection.close()
 
 if __name__ == '__main__':
     create_tables()
+    insert_tables()

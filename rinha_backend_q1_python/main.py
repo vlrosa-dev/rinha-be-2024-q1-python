@@ -31,6 +31,7 @@ app = FastAPI(lifespan=lifespan)
 
 @app.post(path="/clientes/{id}/transacoes", status_code=200)
 async def transacoes(id: int, transacao: ClienteTransacaoCreate):
+    ##### Validação simples dos dados recebidos
     if transacao.valor <= 0:
         raise HTTPException(
             status_code=422, detail="O campo 'valor' deve ser maior que 0."
@@ -46,60 +47,68 @@ async def transacoes(id: int, transacao: ClienteTransacaoCreate):
             status_code=422, detail="O campo 'descricao' deve ter entre 1 a 10 caracteres."
         )
     
-    query_select_cliente = f"""SELECT * FROM clientes WHERE id={id}"""
-    rows_cliente = await database.fetch_all(query=query_select_cliente)
+    ##### Verifica se cliente existe na base de dados
+    query_select_cliente = f"""
+        SELECT * FROM clientes 
+        WHERE id={id}
+    """
+    rows_cliente = await database.fetch_one(query=query_select_cliente)
     if len(rows_cliente) < 1:
         raise HTTPException(status_code=404, detail=f"Cliente ({ id }) não encontrado.")
 
-    query_insert_transacao = f"""
-        INSERT INTO clientes_transacoes(valor, tipo, descricao, id_cliente) 
-        VALUES (:valor, :tipo, :descricao, :id_cliente)
+    id_cliente = int(rows_cliente[0])
+    limite_cliente = int(rows_cliente[2])
+    saldo_cliente = int(rows_cliente[3])
+
+    if transacao.tipo == 'd':
+        novo_saldo = int(saldo_cliente) - int(transacao.valor)
+    
+    if transacao.tipo == 'c':
+        novo_saldo = int(saldo_cliente) + int(transacao.valor)
+
+    if abs(novo_saldo) > limite_cliente:
+        raise HTTPException(status_code=422, detail="Transação não será efetuada.")
+    
+    ##### Atualiza o saldo do cliente
+    query_update_cliente = """
+        UPDATE clientes 
+        SET saldo=:novo_saldo
+        WHERE id=:id
+    """
+    values_update_cliente = {
+        "novo_saldo": novo_saldo,
+        "id": id_cliente
+    }
+    await database.execute(query_update_cliente, values_update_cliente)
+
+    ##### Insere linha de transação
+    query_insert_transacao = """
+        INSERT INTO clientes_transacoes
+            (valor, tipo, descricao, id_cliente) 
+        VALUES 
+            (:valor, :tipo, :descricao, :id_cliente)
     """
     values_insert_transacao = {
         "valor": transacao.valor,
         "tipo": transacao.tipo,
         "descricao": transacao.descricao, 
-        "id_cliente": id
+        "id_cliente": id_cliente
     }
-    await database.execute(query=query_insert_transacao, 
-                           values=values_insert_transacao)
+    await database.execute(query_insert_transacao, values_insert_transacao)
 
-    # cliente = session\
-    #     .query(Clientes)\
-    #     .filter(Clientes.id == id)\
-    #     .first()
-
-    # if not cliente:
-    #     raise HTTPException(
-    #         status_code=404, detail=f"Cliente { id } não encontrado"
-    #     )
+    ##### Consulta Cliente após atualização
+    query_select_cliente = f"""
+        SELECT * FROM clientes 
+        WHERE id={id}
+    """
+    cliente_att = await database.fetch_one(query_select_cliente)
     
-    # if transacao.tipo == 'd':
-    #     novo_saldo = int(cliente.saldo) - (int(transacao.valor) * 100)
-    #     if novo_saldo > cliente.limite:
-    #         raise HTTPException(
-    #             status_code=422, detail="Transação não será efetuada."
-    #         )
-    # elif transacao.tipo == 'c':
-    #     novo_saldo = int(cliente.saldo) + (int(transacao.valor) * 100)
-    
-    # cliente_transacao = ClientesTransacoes(
-    #     valor=transacao.valor * 100,
-    #     tipo=transacao.tipo,
-    #     descricao=transacao.descricao,
-    #     id_cliente=cliente.id
-    # )
-    # session.add(cliente_transacao)
-    # session.commit()
-    # session.refresh(cliente_transacao)
-
-    # cliente.saldo = novo_saldo
-    # session.add(cliente)
-    # session.commit()
-    # session.refresh(cliente)
-    # return JSONResponse(
-    #     { "limite": cliente.limite, "saldo": cliente.saldo }
-    # )
+    return JSONResponse(
+        { 
+            "limite": cliente_att[2], 
+            "saldo": cliente_att[3]
+        }
+    )
 
 # @app.post(path="/clientes/{id}/extrato")
 # async def extrato(session: Session_Db, id: int):
