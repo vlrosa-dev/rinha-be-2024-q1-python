@@ -120,6 +120,7 @@ async def extrato(id: int):
         FROM clientes_transacoes
         WHERE id_cliente=:id
         ORDER BY realizada_em DESC
+        LIMIT 10
     """
     result_transacoes = await database.fetch_all(clientes_transacoes, { "id": id })
     if len(result_transacoes) > 0:
