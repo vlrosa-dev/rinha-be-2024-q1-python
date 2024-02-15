@@ -87,11 +87,11 @@ async def transacoes(id: int, transacao: ClienteTransacaoCreate):
     await database.execute(query_insert_transacao, values_insert_transacao)
 
     ##### Consulta Cliente após atualização
-    query_select_cliente = f"""
+    query_select_cliente = """
         SELECT * FROM clientes 
-        WHERE id={id}
+        WHERE id=:id
     """
-    cliente_att = await database.fetch_one(query_select_cliente)
+    cliente_att = await database.fetch_one(query_select_cliente, { "id": id})
     
     return JSONResponse(
         { 
