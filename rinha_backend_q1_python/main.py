@@ -2,20 +2,11 @@ from contextlib import asynccontextmanager
 from datetime import datetime
 from databases import Database
 
-from typing import Annotated
-from sqlalchemy.orm import Session
-
 from rinha_backend_q1_python.schemas import ClienteTransacaoCreate
-#from rinha_backend_q1_python.models import Clientes
-#from rinha_backend_q1_python.models import ClientesTransacoes
-#from rinha_backend_q1_python.db import get_session
 
 from fastapi.responses import JSONResponse
-from fastapi.encoders import jsonable_encoder
 from fastapi import HTTPException
 from fastapi import FastAPI
-from fastapi import Depends
-
 import uvicorn
 
 database = Database("sqlite:///rinha.db")
@@ -27,7 +18,6 @@ async def lifespan(app: FastAPI):
     await database.disconnect()
 
 app = FastAPI(lifespan=lifespan)
-#Session_Db = Annotated[Session, Depends(get_session)]
 
 @app.post(path="/clientes/{id}/transacoes", status_code=200)
 async def transacoes(id: int, transacao: ClienteTransacaoCreate):
