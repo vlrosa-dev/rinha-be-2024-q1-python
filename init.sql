@@ -12,17 +12,15 @@ CREATE TABLE IF NOT EXISTS clientes_transacoes (
     "tipo"           VARCHAR(1) NOT NULL,
     "descricao"      VARCHAR(10) NOT NULL,
     "realizada_em"   TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    "id_cliente"      INT NOT NULL,
+    "cliente_id"      INT NOT NULL,
     CONSTRAINT "clients_fk" FOREIGN KEY ("id_cliente") REFERENCES clients("id")
+    PRIMARY KEY (id)
 );
 
-DO $$
-BEGIN
-    INSERT INTO clientes ("nome", "limite")
-    VALUES
-        ('grupo avanti', 1000 * 100),
-        ('grupo itau', 800 * 100),
-        ('grupo caixa', 10000 * 100),
-        ('padaria do zé', 100000 * 100),
-        ('padaria do tonico', 5000 * 100);
-END; $$
+INSERT INTO clientes ("nome", "limite")
+VALUES
+    ('grupo avanti', 1000 * 100),
+    ('grupo itau', 800 * 100),
+    ('grupo caixa', 10000 * 100),
+    ('padaria do zé', 100000 * 100),
+    ('padaria do tonico', 5000 * 100);
