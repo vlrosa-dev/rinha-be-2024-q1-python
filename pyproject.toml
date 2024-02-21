@@ -12,7 +12,7 @@ pydantic = "^2.6.1"
 uvicorn = "^0.27.1"
 python-dotenv = "^1.0.1"
 psycopg2-binary = "^2.9.9"
-databases = {extras = ["sqlite"], version = "^0.8.0"}
+databases = {extras = ["asyncpg"], version = "^0.8.0"}
 sqlalchemy = "1.4.42"
 
 

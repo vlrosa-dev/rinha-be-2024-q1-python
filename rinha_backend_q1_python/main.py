@@ -1,19 +1,33 @@
 from contextlib import asynccontextmanager
 from datetime import datetime
-from databases import Database
-
-from rinha_backend_q1_python.schemas import RequestTransacao
 
 from fastapi.responses import JSONResponse
 from fastapi import HTTPException
 from fastapi import FastAPI
-import uvicorn
 
-database = Database("sqlite:///rinha.db")
+from rinha_backend_q1_python.db import database
+from rinha_backend_q1_python.models import clientes
+from rinha_backend_q1_python.models import clientes_transacoes
+
+from rinha_backend_q1_python.schemas import RequestTransacao
+
+from sqlalchemy import select
+import uvicorn
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await database.connect()
+    
+    query = clientes.insert()
+    values = [
+        {"id": 1, "nome": "ze", "limite": 100000, "saldo": 0},
+        {"id": 2, "nome": "junin", "limite": 80000, "saldo": 0},
+        {"id": 3, "nome": "clebin", "limite": 1000000, "saldo": 0},
+        {"id": 4, "nome": "padoca", "limite": 10000000, "saldo": 0},
+        {"id": 5, "nome": "empresa", "limite": 500000, "saldo": 0}
+    ]
+    await database.execute_many(query=query, values=values)
+
     yield
     await database.disconnect()
 
@@ -21,18 +35,14 @@ app = FastAPI(lifespan=lifespan)
 
 @app.post(path="/clientes/{id}/transacoes", status_code=200)
 async def transacoes(id: int, transacao: RequestTransacao):
-    ##### Verifica se cliente existe na base de dados
-    query_select_cliente = """
-        SELECT * FROM clientes 
-        WHERE id=:id
-    """
-    rows_cliente = await database.fetch_one(query_select_cliente, { "id": id })
-    if len(rows_cliente) < 1:
+    query_cliente = select([clientes.c.id, clientes.c.limite, clientes.c.saldo]).where(clientes.c.id == id)
+    row_cliente = await database.fetch_one(query_cliente)
+    if not row_cliente:
         raise HTTPException(status_code=404, detail=f"Cliente ({ id }) não encontrado.")
 
-    id_cliente = int(rows_cliente[0])
-    limite_cliente = int(rows_cliente[2])
-    saldo_cliente = int(rows_cliente[3])
+    id_cliente = row_cliente['id']
+    limite_cliente = row_cliente['limite']
+    saldo_cliente = row_cliente['saldo']
 
     if transacao.tipo == 'd':
         novo_saldo = int(saldo_cliente) - int(transacao.valor)

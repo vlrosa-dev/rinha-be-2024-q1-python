@@ -8,4 +8,4 @@ metadata_obj = MetaData()
 
 database = Database(URL_DATABASE)
 
-engine_db = create_engine(url=URL_DATABASE, echo=True)
+engine_db = create_engine(url=URL_DATABASE)
