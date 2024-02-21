@@ -8,11 +8,16 @@ from fastapi import FastAPI
 from rinha_backend_q1_python.db import database
 from rinha_backend_q1_python.models import clientes
 from rinha_backend_q1_python.models import clientes_transacoes
+
 from rinha_backend_q1_python.schemas import RequestTransacao
+from rinha_backend_q1_python.schemas import Transacao
+from rinha_backend_q1_python.schemas import InfoSaldo
+from rinha_backend_q1_python.schemas import ResponseTransacoes
 
 from sqlalchemy import select
 from sqlalchemy import update
 from sqlalchemy import insert
+from sqlalchemy import desc
 
 import uvicorn
 
@@ -65,48 +70,39 @@ async def transacoes(id: int, transacao: RequestTransacao):
 
 @app.post(path="/clientes/{id}/extrato")
 async def extrato(id: int):
-    ##### Verifica se cliente existe
-    query_select_cliente = """
-        SELECT * FROM clientes 
-        WHERE id=:id
-    """
-    cliente = await database.fetch_one(query_select_cliente, { "id": id })
-    if len(cliente) < 1:
-        raise HTTPException(
-            status_code=404, detail=f"Cliente { id } não encontrado"
-        )
+    query_cliente = select([clientes.c.id, clientes.c.limite, clientes.c.saldo]).where(clientes.c.id == id)
+    row_cliente = await database.fetch_one(query_cliente)
+    if not row_cliente:
+        raise HTTPException(status_code=404, detail=f"Cliente { id } não encontrado.")
     
-    ##### Consulta transacoes do cliente
+    query_transacao = select(
+        [
+            clientes_transacoes.c.valor, 
+            clientes_transacoes.c.tipo, 
+            clientes_transacoes.c.descricao,
+            clientes_transacoes.c.realizada_em
+        ])\
+            .where(clientes_transacoes.c.cliente_id == id)\
+            .order_by(desc(clientes_transacoes.c.realizada_em))\
+            .limit(10)
+    rows_transacoes = await database.fetch_all(query_transacao)
+
     ultimas_transacoes = []
-    clientes_transacoes = """
-        SELECT valor, tipo, descricao, realizada_em  
-        FROM clientes_transacoes
-        WHERE id_cliente=:id
-        ORDER BY realizada_em DESC
-        LIMIT 10
-    """
-    result_transacoes = await database.fetch_all(clientes_transacoes, { "id": id })
-    if len(result_transacoes) > 0:
-        for item in result_transacoes:
-            ultimas_transacoes.append(
-                {
-                    "valor": item[0],
-                    "tipo": item[1],
-                    "descricao": item[2],
-                    "realizada_em": item[3]
-                }
-            )
+    for transacao in rows_transacoes:
+        ultimas_transacoes.append({
+            "valor": transacao["valor"],
+            "tipo": transacao["tipo"],
+            "descricao": transacao["descricao"],
+            "realizada_em": transacao["realizada_em"]
+        })
     
-    ##### Configura JSON de resposta
-    result_json = {
+    return {
         "saldo": {
-            "total": cliente[3],
+            "total": row_cliente["saldo"],
             "data_extrato": str(datetime.utcnow()),
-            "limite": cliente[2]
+            "limite": row_cliente["limite"]
         }, "ultimas_transacoes": ultimas_transacoes
     }
-
-    return JSONResponse(content=result_json, status_code=200)
 
 if __name__ == '__main__':
     uvicorn.run(
