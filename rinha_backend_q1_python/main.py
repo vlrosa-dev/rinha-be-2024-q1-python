@@ -2,7 +2,7 @@ from contextlib import asynccontextmanager
 from datetime import datetime
 from databases import Database
 
-from rinha_backend_q1_python.schemas import ClienteTransacaoCreate
+from rinha_backend_q1_python.schemas import RequestTransacao
 
 from fastapi.responses import JSONResponse
 from fastapi import HTTPException
@@ -20,23 +20,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(lifespan=lifespan)
 
 @app.post(path="/clientes/{id}/transacoes", status_code=200)
-async def transacoes(id: int, transacao: ClienteTransacaoCreate):
-    ##### Validação simples dos dados recebidos
-    if transacao.valor <= 0:
-        raise HTTPException(
-            status_code=422, detail="O campo 'valor' deve ser maior que 0."
-        )
-    
-    if (transacao.tipo != 'c') and (transacao.tipo != "d"):
-        raise HTTPException(
-            status_code=422, detail="O campo 'tipo' deve ser 'c=credito' ou 'd=debito'."
-        )
-    
-    if (len(transacao.descricao) <= 0) or (len(transacao.descricao) > 10):
-        raise HTTPException(
-            status_code=422, detail="O campo 'descricao' deve ter entre 1 a 10 caracteres."
-        )
-    
+async def transacoes(id: int, transacao: RequestTransacao):
     ##### Verifica se cliente existe na base de dados
     query_select_cliente = """
         SELECT * FROM clientes 
