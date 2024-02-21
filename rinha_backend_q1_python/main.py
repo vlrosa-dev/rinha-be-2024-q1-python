@@ -1,18 +1,14 @@
 from contextlib import asynccontextmanager
 from datetime import datetime
 
-from fastapi.responses import JSONResponse
 from fastapi import HTTPException
 from fastapi import FastAPI
+from fastapi.responses import JSONResponse
 
 from rinha_backend_q1_python.db import database
 from rinha_backend_q1_python.models import clientes
 from rinha_backend_q1_python.models import clientes_transacoes
-
 from rinha_backend_q1_python.schemas import RequestTransacao
-from rinha_backend_q1_python.schemas import Transacao
-from rinha_backend_q1_python.schemas import InfoSaldo
-from rinha_backend_q1_python.schemas import ResponseTransacoes
 
 from sqlalchemy import select
 from sqlalchemy import update
