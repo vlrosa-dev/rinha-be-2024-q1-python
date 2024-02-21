@@ -8,10 +8,12 @@ from fastapi import FastAPI
 from rinha_backend_q1_python.db import database
 from rinha_backend_q1_python.models import clientes
 from rinha_backend_q1_python.models import clientes_transacoes
-
 from rinha_backend_q1_python.schemas import RequestTransacao
 
 from sqlalchemy import select
+from sqlalchemy import update
+from sqlalchemy import insert
+
 import uvicorn
 
 @asynccontextmanager
@@ -38,61 +40,28 @@ async def transacoes(id: int, transacao: RequestTransacao):
     query_cliente = select([clientes.c.id, clientes.c.limite, clientes.c.saldo]).where(clientes.c.id == id)
     row_cliente = await database.fetch_one(query_cliente)
     if not row_cliente:
-        raise HTTPException(status_code=404, detail=f"Cliente ({ id }) não encontrado.")
-
-    id_cliente = row_cliente['id']
-    limite_cliente = row_cliente['limite']
-    saldo_cliente = row_cliente['saldo']
+        raise HTTPException(status_code=404, detail=f"Cliente { id } não encontrado.")
 
     if transacao.tipo == 'd':
-        novo_saldo = int(saldo_cliente) - int(transacao.valor)
+        novo_saldo = int(row_cliente['saldo']) - int(transacao.valor)
     
     if transacao.tipo == 'c':
-        novo_saldo = int(saldo_cliente) + int(transacao.valor)
+        novo_saldo = int(row_cliente['saldo']) + int(transacao.valor)
 
-    if abs(novo_saldo) > limite_cliente:
-        raise HTTPException(status_code=422, detail="Transação não será efetuada.")
+    if transacao.tipo == 'd' and novo_saldo < -row_cliente['limite']:
+        raise HTTPException(status_code=422, detail="Transação inconsistente, saldo insuficiente.")
     
-    ##### Atualiza o saldo do cliente
-    query_update_cliente = """
-        UPDATE clientes 
-        SET saldo=:novo_saldo
-        WHERE id=:id
-    """
-    values_update_cliente = {
-        "novo_saldo": novo_saldo,
-        "id": id_cliente
-    }
-    await database.execute(query_update_cliente, values_update_cliente)
+    query_update_saldo = update(clientes).where(clientes.c.id == id)
+    await database.execute(query_update_saldo, { "saldo": novo_saldo })
 
-    ##### Insere linha de transação
-    query_insert_transacao = """
-        INSERT INTO clientes_transacoes
-            (valor, tipo, descricao, id_cliente) 
-        VALUES 
-            (:valor, :tipo, :descricao, :id_cliente)
-    """
-    values_insert_transacao = {
-        "valor": transacao.valor,
-        "tipo": transacao.tipo,
-        "descricao": transacao.descricao, 
-        "id_cliente": id_cliente
-    }
-    await database.execute(query_insert_transacao, values_insert_transacao)
-
-    ##### Consulta Cliente após atualização
-    query_select_cliente = """
-        SELECT * FROM clientes 
-        WHERE id=:id
-    """
-    cliente_att = await database.fetch_one(query_select_cliente, { "id": id})
+    await database.execute(insert(clientes_transacoes).values(
+        valor=transacao.valor,
+        tipo=transacao.tipo,
+        descricao=transacao.descricao,
+        cliente_id=id
+    ))
     
-    return JSONResponse(
-        { 
-            "limite": cliente_att[2], 
-            "saldo": cliente_att[3]
-        }
-    )
+    return JSONResponse({ "limite": row_cliente['limite'], "saldo": novo_saldo })
 
 @app.post(path="/clientes/{id}/extrato")
 async def extrato(id: int):
