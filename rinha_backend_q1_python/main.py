@@ -10,6 +10,7 @@ from rinha_backend_q1_python.models import clientes
 from rinha_backend_q1_python.models import clientes_transacoes
 from rinha_backend_q1_python.schemas import RequestTransacao
 
+from asyncpg.exceptions import UniqueViolationError
 from sqlalchemy import select
 from sqlalchemy import update
 from sqlalchemy import insert
@@ -21,15 +22,17 @@ import uvicorn
 async def lifespan(app: FastAPI):
     await database.connect()
     
-    query = clientes.insert()
-    values = [
-        {"id": 1, "nome": "ze", "limite": 100000, "saldo": 0},
-        {"id": 2, "nome": "junin", "limite": 80000, "saldo": 0},
-        {"id": 3, "nome": "clebin", "limite": 1000000, "saldo": 0},
-        {"id": 4, "nome": "padoca", "limite": 10000000, "saldo": 0},
-        {"id": 5, "nome": "empresa", "limite": 500000, "saldo": 0}
-    ]
-    await database.execute_many(query=query, values=values)
+    try:
+        await database.execute(insert(clientes).values(
+        [
+            (1, "ze", 100000), 
+            (2, "junin", 100000),
+            (3, "clebin", 100000), 
+            (4, "padoca", 100000),
+            (5, "empresa", 100000)
+        ]))
+    except UniqueViolationError:
+        pass
 
     yield
     await database.disconnect()
@@ -95,7 +98,7 @@ async def extrato(id: int):
     return {
         "saldo": {
             "total": row_cliente["saldo"],
-            "data_extrato": str(datetime.utcnow()),
+            "data_extrato": datetime.utcnow(),
             "limite": row_cliente["limite"]
         }, "ultimas_transacoes": ultimas_transacoes
     }
