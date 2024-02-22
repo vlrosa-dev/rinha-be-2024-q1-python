@@ -12,8 +12,8 @@ CREATE TABLE IF NOT EXISTS clientes_transacoes (
     "tipo"           VARCHAR(1) NOT NULL,
     "descricao"      VARCHAR(10) NOT NULL,
     "realizada_em"   TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    "cliente_id"      INT NOT NULL,
-    CONSTRAINT "clients_fk" FOREIGN KEY ("id_cliente") REFERENCES clients("id")
+    "cliente_id"     INT NOT NULL,
+    CONSTRAINT "clients_fk" FOREIGN KEY ("cliente_id") REFERENCES clients("id"),
     PRIMARY KEY (id)
 );
 

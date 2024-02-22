@@ -1,12 +1,13 @@
 FROM python:3.11-buster
 
-RUN pip install poetry==1.4.2
-
 WORKDIR /app
 
-COPY pyproject.toml poetry.lock ./
+COPY requirements.txt /app/requirements.txt
+
+RUN pip install --no-cache-dir --upgrade -r /app/requirements.txt
+
 COPY rinha_backend_q1_python ./rinha_backend_q1_python
 
-RUN poetry install --without dev
+CMD ["uvicorn", "rinha_backend_q1_python.main:app", "--host", "0.0.0.0", "--port", "8000"]
 
-ENTRYPOINT ["poetry", "run", "python", "-m", "rinha_backend_q1_python.main"]
+#ENTRYPOINT ["python", "-m", "rinha_backend_q1_python.main"]

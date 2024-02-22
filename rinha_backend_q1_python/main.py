@@ -10,7 +10,6 @@ from rinha_backend_q1_python.models import clientes
 from rinha_backend_q1_python.models import clientes_transacoes
 from rinha_backend_q1_python.schemas import RequestTransacao
 
-from asyncpg.exceptions import UniqueViolationError
 from sqlalchemy import select
 from sqlalchemy import update
 from sqlalchemy import insert
@@ -21,19 +20,6 @@ import uvicorn
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await database.connect()
-    
-    try:
-        await database.execute(insert(clientes).values(
-        [
-            (1, "ze", 100000), 
-            (2, "junin", 100000),
-            (3, "clebin", 100000), 
-            (4, "padoca", 100000),
-            (5, "empresa", 100000)
-        ]))
-    except UniqueViolationError:
-        pass
-
     yield
     await database.disconnect()
 
