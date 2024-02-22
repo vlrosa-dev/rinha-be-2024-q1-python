@@ -53,7 +53,7 @@ async def transacoes(id: int, transacao: RequestTransacao):
     
     return JSONResponse({ "limite": row_cliente['limite'], "saldo": novo_saldo })
 
-@app.post(path="/clientes/{id}/extrato")
+@app.get(path="/clientes/{id}/extrato")
 async def extrato(id: int):
     query_cliente = select([clientes.c.id, clientes.c.limite, clientes.c.saldo]).where(clientes.c.id == id)
     row_cliente = await database.fetch_one(query_cliente)
