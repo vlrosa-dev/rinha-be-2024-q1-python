@@ -1,3 +1,6 @@
+DROP TABLE clientes;
+DROP TABLE clientes_transacoes;
+
 CREATE TABLE IF NOT EXISTS clientes (
     "id"             SERIAL,
     "nome"           VARCHAR(50) NOT NULL,
