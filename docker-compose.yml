@@ -26,8 +26,10 @@ services:
     volumes:
       - ./nginx.conf:/etc/nginx/nginx.conf:ro
     depends_on:
-      - api01
-      - api02
+      api01:
+        condition: service_started
+      api02:
+        condition: service_started
     ports:
       - "9999:9999"
     deploy:
@@ -46,7 +48,7 @@ services:
       - POSTGRES_DB=rinha_backend
     healthcheck:
       test: ["CMD-SHELL", "pg_isready", "-d", "rinha_backend"]
-      interval: 5s
+      interval: 10s
       timeout: 5s
       retries: 5
     ports:
