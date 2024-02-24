@@ -25,6 +25,10 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(lifespan=lifespan)
 
+@app.get('/healthcheck')
+async def health_check():
+    return JSONResponse(status_code=200)
+
 @app.post(path="/clientes/{id}/transacoes", status_code=200)
 async def transacoes(id: int, transacao: RequestTransacao):
     async with database.transaction():
