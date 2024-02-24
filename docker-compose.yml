@@ -12,8 +12,8 @@ services:
     deploy:
       resources:
         limits:
-          cpus: "0.55"
-          memory: "200MB"
+          cpus: "0.2"
+          memory: "50MB"
 
   api02:
     <<: *api
@@ -32,12 +32,13 @@ services:
     deploy:
       resources:
         limits:
-          cpus: "0.15"
-          memory: "10MB"
+          cpus: "0.25"
+          memory: "50MB"
 
   db:
     image: postgres:latest
     hostname: db
+    restart: unless-stopped
     environment:
       - POSTGRES_PASSWORD=112131
       - POSTGRES_USER=postgres
@@ -50,8 +51,8 @@ services:
     deploy:
       resources:
         limits:
-          cpus: "0.25"
-          memory: "140MB"
+          cpus: "0.85"
+          memory: "400MB"
 
 networks:
   default:
