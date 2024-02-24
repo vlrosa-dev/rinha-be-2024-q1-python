@@ -56,32 +56,31 @@ async def transacoes(id: int, transacao: RequestTransacao):
 
 @app.get(path="/clientes/{id}/extrato")
 async def extrato(id: int):
-    async with database.transaction():
-        query_cliente = select([clientes.c.id, clientes.c.limite, clientes.c.saldo]).where(clientes.c.id == id)
-        row_cliente = await database.fetch_one(query_cliente)
-        if not row_cliente:
-            raise HTTPException(status_code=404, detail=f"Cliente { id } não encontrado.")
-        
-        query_transacao = select(
-            [
-                clientes_transacoes.c.valor, 
-                clientes_transacoes.c.tipo, 
-                clientes_transacoes.c.descricao,
-                clientes_transacoes.c.realizada_em
-            ])\
-                .where(clientes_transacoes.c.cliente_id == id)\
-                .order_by(desc(clientes_transacoes.c.realizada_em))\
-                .limit(10)
-        rows_transacoes = await database.fetch_all(query_transacao)
+    query_cliente = select([clientes.c.id, clientes.c.limite, clientes.c.saldo]).where(clientes.c.id == id)
+    row_cliente = await database.fetch_one(query_cliente)
+    if not row_cliente:
+        raise HTTPException(status_code=404, detail=f"Cliente { id } não encontrado.")
+    
+    query_transacao = select(
+        [
+            clientes_transacoes.c.valor, 
+            clientes_transacoes.c.tipo, 
+            clientes_transacoes.c.descricao,
+            clientes_transacoes.c.realizada_em
+        ])\
+            .where(clientes_transacoes.c.cliente_id == id)\
+            .order_by(desc(clientes_transacoes.c.realizada_em))\
+            .limit(10)
+    rows_transacoes = await database.fetch_all(query_transacao)
 
-        ultimas_transacoes = []
-        for transacao in rows_transacoes:
-            ultimas_transacoes.append({
-                "valor": transacao["valor"],
-                "tipo": transacao["tipo"],
-                "descricao": transacao["descricao"],
-                "realizada_em": transacao["realizada_em"]
-        })
+    ultimas_transacoes = []
+    for transacao in rows_transacoes:
+        ultimas_transacoes.append({
+            "valor": transacao["valor"],
+            "tipo": transacao["tipo"],
+            "descricao": transacao["descricao"],
+            "realizada_em": transacao["realizada_em"]
+    })
     
     return {
         "saldo": {
