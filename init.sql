@@ -1,6 +1,3 @@
-DROP TABLE clientes;
-DROP TABLE clientes_transacoes;
-
 CREATE TABLE IF NOT EXISTS clientes (
     "id"             SERIAL,
     "nome"           VARCHAR(50) NOT NULL,
@@ -16,7 +13,7 @@ CREATE TABLE IF NOT EXISTS clientes_transacoes (
     "descricao"      VARCHAR(10) NOT NULL,
     "realizada_em"   TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     "cliente_id"     INT NOT NULL,
-    CONSTRAINT "clients_fk" FOREIGN KEY ("cliente_id") REFERENCES clients("id"),
+    CONSTRAINT "clientes_fk" FOREIGN KEY ("cliente_id") REFERENCES clientes("id"),
     PRIMARY KEY (id)
 );
 
