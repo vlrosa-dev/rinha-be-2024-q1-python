@@ -54,8 +54,3 @@ services:
         limits:
           cpus: "0.85"
           memory: "400MB"
-
-networks:
-  default:
-    driver: bridge
-    name: rinha-nginx-2024q1
