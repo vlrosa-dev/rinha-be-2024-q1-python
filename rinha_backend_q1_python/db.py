@@ -6,6 +6,6 @@ URL_DATABASE = 'postgresql+psycopg2://postgres:112131@db:5432/rinha_backend'
 
 metadata_obj = MetaData()
 
-database = Database(URL_DATABASE)
+database = Database(URL_DATABASE, min_size=1, max_size=25)
 
 engine_db = create_engine(url=URL_DATABASE)
