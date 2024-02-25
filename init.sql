@@ -32,7 +32,7 @@ BEGIN
 	SELECT c.limite as limite, c.saldo as saldo
 	INTO vlimite, vsaldo
 	FROM clientes as c
-	WHERE c.id = ucliente_id;
+	WHERE c.id = ucliente_id FOR UPDATE;
 	
 	IF utipo = 'd' THEN
 		vnovosaldo := vsaldo - uvalor;
