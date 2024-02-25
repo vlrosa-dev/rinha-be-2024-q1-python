@@ -17,7 +17,6 @@ from rinha_backend_q1_python.queries import (
 from rinha_backend_q1_python.db import database
 
 from sqlalchemy import (
-    select,
     update,
     insert
 )
@@ -44,27 +43,22 @@ async def healthcheck(request):
 
 async def transacoes(request: Request):
     req_transacao_body = await request.json()
-    id_cliente = request.path_params['id']
-
-    try:
-        transacao = RequestTransacao(**req_transacao_body)
-    except ValidationError as error:
-        return JSONResponse({ "body_error": error.json() }, status_code=422)
-
+    
+    if not (id_cliente := request.path_params.get('id', None)):
+        return JSONResponse({'detail': 'cliente não encontrado'}, status_code=404)
+    
     async with database.transaction():
-        query_cliente = select([clientes.c.id, clientes.c.limite, clientes.c.saldo]).where(clientes.c.id == id_cliente)
-        row_cliente = await database.fetch_one(query_cliente)
-        if not row_cliente:
-            return Response(f"Cliente { id } não encontrado.", status_code=404)
+        if record_cliente := await database.fetch_one(USUARIO_EXISTE, { "id": id_cliente }):
+            try:
+                transacao = RequestTransacao(**req_transacao_body)
+            except ValidationError as error:
+                return JSONResponse({ "detail": error.json() }, status_code=422)
         
-        if transacao.tipo == 'd':
-            novo_saldo = int(row_cliente['saldo']) - int(transacao.valor)
+        novo_saldo = int(record_cliente['saldo']) + \
+            (-transacao.valor if 'd' in transacao.tipo else +transacao.valor)
         
-        if transacao.tipo == 'c':
-            novo_saldo = int(row_cliente['saldo']) + int(transacao.valor)
-
-        if transacao.tipo == 'd' and novo_saldo < -row_cliente['limite']:
-            raise Response("Transação inconsistente, saldo insuficiente.", status_code=422)
+        if (novo_saldo < -record_cliente['limite']) and ('d' in transacao.tipo):
+            return JSONResponse({"detail": "Transação inconsistente, saldo insuficiente."}, status_code=422)
         
         query_update_saldo = update(clientes).where(clientes.c.id == id_cliente)
         await database.execute(query_update_saldo, { "saldo": novo_saldo })
@@ -76,13 +70,7 @@ async def transacoes(request: Request):
             cliente_id=id_cliente
         ))
     
-    return JSONResponse(
-        { 
-            "limite": row_cliente['limite'], 
-            "saldo": novo_saldo 
-        },
-        status_code=200
-    )
+    return JSONResponse({ "limite": record_cliente['limite'], "saldo": novo_saldo }, status_code=200)
 
 async def extrato(request: Request):
     id_cliente = request.path_params['id']
