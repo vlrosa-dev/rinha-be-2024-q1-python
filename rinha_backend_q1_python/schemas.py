@@ -18,7 +18,7 @@ class Transacao(BaseModel):
     valor: int
     tipo: Literal['c', 'd']
     descricao: str
-    realizada_em: datetime = Field(default_factory=datetime.utcnow)
+    realizada_em: datetime
 
 class InfoSaldo(BaseModel):
     total: int

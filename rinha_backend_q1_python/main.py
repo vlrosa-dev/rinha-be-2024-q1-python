@@ -1,18 +1,17 @@
 from contextlib import asynccontextmanager
-from datetime import datetime
-
 from pydantic import ValidationError
 
 from rinha_backend_q1_python.db import database
 from rinha_backend_q1_python.models import clientes
 from rinha_backend_q1_python.models import clientes_transacoes
-from rinha_backend_q1_python.schemas import RequestTransacao
-from rinha_backend_q1_python.schemas import Transacao
+from rinha_backend_q1_python.schemas import RequestTransacao, Transacao
+from rinha_backend_q1_python.schemas import InfoSaldo
+from rinha_backend_q1_python.schemas import ResponseTransacoes
+from rinha_backend_q1_python.queries import USUARIO_EXISTE, TRANSACOES_CLIENTES
 
 from sqlalchemy import select
 from sqlalchemy import update
 from sqlalchemy import insert
-from sqlalchemy import desc
 
 from starlette.requests import Request
 from starlette.applications import Starlette
@@ -74,34 +73,27 @@ async def transacoes(request: Request):
 async def extrato(request: Request):
     id_cliente = request.path_params['id']
 
-    query_cliente = select([clientes.c.id, clientes.c.limite, clientes.c.saldo]).where(clientes.c.id == id_cliente)
-    row_cliente = await database.fetch_one(query_cliente)
-    if not row_cliente:
-        raise Response("Cliente { id } não encontrado.", status_code=404)
-    
-    query_transacao = select(
-        [
-            clientes_transacoes.c.valor, 
-            clientes_transacoes.c.tipo, 
-            clientes_transacoes.c.descricao,
-            clientes_transacoes.c.realizada_em
-        ])\
-            .where(clientes_transacoes.c.cliente_id == id_cliente)\
-            .order_by(desc(clientes_transacoes.c.realizada_em))\
-            .limit(10)
-    rows_transacoes = await database.fetch_all(query_transacao)
-    ultimas_transacoes = [ Transacao(**item) for item in rows_transacoes ]
-    
-    return JSONResponse(
-        content={
-            "saldo": {
-                "total": row_cliente["saldo"],
-                "data_extrato": str(datetime.utcnow()),
-                "limite": row_cliente["limite"]
-            }, "ultimas_transacoes": ultimas_transacoes
-        },
-        status_code=200
-    )
+    async with database.transaction():
+        if record_cliente := await database.fetch_one(USUARIO_EXISTE, { "id": id_cliente }):
+            info_saldo = InfoSaldo(
+                total=record_cliente['saldo'],
+                limite=record_cliente['limite']
+            )
+            
+            records_transacoes = await database.fetch_all(TRANSACOES_CLIENTES, { "id": id_cliente })
+            ultimas_transacoes = [
+                Transacao(valor=item.valor, 
+                          tipo=item.tipo, 
+                          descricao=item.descricao, 
+                          realizada_em=item.realizada_em
+                        )
+                for item in records_transacoes
+            ]
+            
+            info_transacoes = ResponseTransacoes(saldo=info_saldo, ultimas_transacoes=ultimas_transacoes)
+            return JSONResponse(info_transacoes, status_code=200)
+        else:
+            return Response("Cliente { id } não encontrado.", status_code=404)
 
 routes = [
     Route('/healthcheck', endpoint=healthcheck, methods=['GET']),
