@@ -94,7 +94,7 @@ async def extrato(request: Request):
             info_transacoes = ResponseTransacoes(saldo=info_saldo, ultimas_transacoes=ultimas_transacoes)
             return JSONResponse(info_transacoes.model_dump_json(), status_code=200)
         else:
-            return Response("Cliente { id } não encontrado.", status_code=404)
+            return Response(f"Cliente { id_cliente } não encontrado.", status_code=404)
 
 routes = [
     Route('/healthcheck', endpoint=healthcheck, methods=['GET']),
