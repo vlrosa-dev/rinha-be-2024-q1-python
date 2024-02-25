@@ -14,7 +14,11 @@ python-dotenv = "^1.0.1"
 psycopg2-binary = "^2.9.9"
 databases = {extras = ["asyncpg"], version = "^0.8.0"}
 sqlalchemy = "1.4.42"
+pyyaml = "^6.0.1"
 
+
+[tool.poetry.group.dev.dependencies]
+starlette = "0.36.3"
 
 [build-system]
 requires = ["poetry-core"]

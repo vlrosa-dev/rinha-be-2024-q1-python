@@ -1,42 +1,49 @@
 from contextlib import asynccontextmanager
 from datetime import datetime
 
-from fastapi import HTTPException
-from fastapi import FastAPI
-from fastapi.responses import JSONResponse
+from pydantic import ValidationError
 
 from rinha_backend_q1_python.db import database
 from rinha_backend_q1_python.models import clientes
 from rinha_backend_q1_python.models import clientes_transacoes
 from rinha_backend_q1_python.schemas import RequestTransacao
+from rinha_backend_q1_python.schemas import Transacao
 
 from sqlalchemy import select
 from sqlalchemy import update
 from sqlalchemy import insert
 from sqlalchemy import desc
 
-import uvicorn
+from starlette.requests import Request
+from starlette.applications import Starlette
+from starlette.responses import Response
+from starlette.responses import JSONResponse
+from starlette.routing import Route
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+async def lifespan(app):
     await database.connect()
     yield
     await database.disconnect()
 
-app = FastAPI(lifespan=lifespan)
+async def healthcheck(request):
+    return Response(content='OK', status_code=200)
 
-@app.get('/healthcheck')
-async def health_check():
-    return JSONResponse(status_code=200)
+async def transacoes(request: Request):
+    req_transacao_body = await request.json()
+    id_params = request.query_params['id']
 
-@app.post(path="/clientes/{id}/transacoes", status_code=200)
-async def transacoes(id: int, transacao: RequestTransacao):
+    try:
+        transacao = RequestTransacao(**req_transacao_body)
+    except ValidationError as error:
+        return JSONResponse({ "body_error": error.json() }, status_code=422)
+
     async with database.transaction():
-        query_cliente = select([clientes.c.id, clientes.c.limite, clientes.c.saldo]).where(clientes.c.id == id)
+        query_cliente = select([clientes.c.id, clientes.c.limite, clientes.c.saldo]).where(clientes.c.id == id_params)
         row_cliente = await database.fetch_one(query_cliente)
         if not row_cliente:
-            raise HTTPException(status_code=404, detail=f"Cliente { id } não encontrado.")
-
+            return Response(f"Cliente { id } não encontrado.", status_code=404)
+        
         if transacao.tipo == 'd':
             novo_saldo = int(row_cliente['saldo']) - int(transacao.valor)
         
@@ -44,7 +51,7 @@ async def transacoes(id: int, transacao: RequestTransacao):
             novo_saldo = int(row_cliente['saldo']) + int(transacao.valor)
 
         if transacao.tipo == 'd' and novo_saldo < -row_cliente['limite']:
-            raise HTTPException(status_code=422, detail="Transação inconsistente, saldo insuficiente.")
+            raise Response("Transação inconsistente, saldo insuficiente.", status_code=422)
         
         query_update_saldo = update(clientes).where(clientes.c.id == id)
         await database.execute(query_update_saldo, { "saldo": novo_saldo })
@@ -56,14 +63,21 @@ async def transacoes(id: int, transacao: RequestTransacao):
             cliente_id=id
         ))
     
-    return JSONResponse({ "limite": row_cliente['limite'], "saldo": novo_saldo })
+    return JSONResponse(
+        { 
+            "limite": row_cliente['limite'], 
+            "saldo": novo_saldo 
+        },
+        status_code=200
+    )
 
-@app.get(path="/clientes/{id}/extrato")
-async def extrato(id: int):
-    query_cliente = select([clientes.c.id, clientes.c.limite, clientes.c.saldo]).where(clientes.c.id == id)
+async def extrato(request):
+    id_cliente = request.path_params['id']
+
+    query_cliente = select([clientes.c.id, clientes.c.limite, clientes.c.saldo]).where(clientes.c.id == id_cliente)
     row_cliente = await database.fetch_one(query_cliente)
     if not row_cliente:
-        raise HTTPException(status_code=404, detail=f"Cliente { id } não encontrado.")
+        raise Response("Cliente { id } não encontrado.", status_code=404)
     
     query_transacao = select(
         [
@@ -72,32 +86,31 @@ async def extrato(id: int):
             clientes_transacoes.c.descricao,
             clientes_transacoes.c.realizada_em
         ])\
-            .where(clientes_transacoes.c.cliente_id == id)\
+            .where(clientes_transacoes.c.cliente_id == id_cliente)\
             .order_by(desc(clientes_transacoes.c.realizada_em))\
             .limit(10)
     rows_transacoes = await database.fetch_all(query_transacao)
-
-    ultimas_transacoes = []
-    for transacao in rows_transacoes:
-        ultimas_transacoes.append({
-            "valor": transacao["valor"],
-            "tipo": transacao["tipo"],
-            "descricao": transacao["descricao"],
-            "realizada_em": transacao["realizada_em"]
-    })
+    ultimas_transacoes = [ Transacao(**item) for item in rows_transacoes ]
     
-    return {
-        "saldo": {
-            "total": row_cliente["saldo"],
-            "data_extrato": datetime.utcnow(),
-            "limite": row_cliente["limite"]
-        }, "ultimas_transacoes": ultimas_transacoes
-    }
-
-if __name__ == '__main__':
-    uvicorn.run(
-        app="rinha_backend_q1_python.main:app",
-        host="127.0.0.1",
-        port=8080,
-        reload=True
+    return JSONResponse(
+        content={
+            "saldo": {
+                "total": row_cliente["saldo"],
+                "data_extrato": str(datetime.utcnow()),
+                "limite": row_cliente["limite"]
+            }, "ultimas_transacoes": ultimas_transacoes
+        },
+        status_code=200
     )
+
+routes = [
+    Route('/healthcheck', endpoint=healthcheck, methods=['GET']),
+    Route('/clientes/{id:int}/transacoes', endpoint=transacoes, methods=['POST']),
+    Route('/clientes/{id:int}/extrato', endpoint=extrato, methods=['GET'])
+]
+
+app = Starlette(
+    debug=True,
+    routes=routes,
+    lifespan=lifespan
+)
