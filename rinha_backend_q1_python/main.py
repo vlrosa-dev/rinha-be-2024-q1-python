@@ -1,8 +1,3 @@
-from rinha_backend_q1_python.models import (
-    clientes,
-    clientes_transacoes
-)
-
 from rinha_backend_q1_python.schemas import (
     InfoSaldo,
     ResponseTransacoes,
@@ -12,14 +7,10 @@ from rinha_backend_q1_python.schemas import (
 
 from rinha_backend_q1_python.queries import (
     USUARIO_EXISTE, 
-    TRANSACOES_CLIENTES
+    ULTIMAS_TRANSACOES,
+    REALIZAR_TRANSACAO
 )
 from rinha_backend_q1_python.db import database
-
-from sqlalchemy import (
-    update,
-    insert
-)
 
 from starlette.responses import (
     Response,
@@ -51,26 +42,21 @@ async def transacoes(request: Request):
         if record_cliente := await database.fetch_one(USUARIO_EXISTE, { "id": id_cliente }):
             try:
                 transacao = RequestTransacao(**req_transacao_body)
+
+                rst_transacao = await database.fetch_one(
+                    query=REALIZAR_TRANSACAO,
+                    values={ 
+                        "id": record_cliente['id'], 
+                        "valor": transacao.valor,
+                        "tipo": transacao.tipo,
+                        "descricao": transacao.descricao
+                    }
+                )
+
+                return JSONResponse({ "limite": rst_transacao['limite'], "saldo": rst_transacao['novosaldo'] }, status_code=200)
+
             except ValidationError as error:
                 return JSONResponse({ "detail": error.json() }, status_code=422)
-        
-        novo_saldo = int(record_cliente['saldo']) + \
-            (-transacao.valor if 'd' in transacao.tipo else +transacao.valor)
-        
-        if (novo_saldo < -record_cliente['limite']) and ('d' in transacao.tipo):
-            return JSONResponse({"detail": "Transação inconsistente, saldo insuficiente."}, status_code=422)
-        
-        query_update_saldo = update(clientes).where(clientes.c.id == id_cliente)
-        await database.execute(query_update_saldo, { "saldo": novo_saldo })
-
-        await database.execute(insert(clientes_transacoes).values(
-            valor=transacao.valor,
-            tipo=transacao.tipo,
-            descricao=transacao.descricao,
-            cliente_id=id_cliente
-        ))
-    
-    return JSONResponse({ "limite": record_cliente['limite'], "saldo": novo_saldo }, status_code=200)
 
 async def extrato(request: Request):
     id_cliente = request.path_params['id']
@@ -82,7 +68,7 @@ async def extrato(request: Request):
                 limite=record_cliente['limite']
             )
             
-            records_transacoes = await database.fetch_all(TRANSACOES_CLIENTES, { "id": id_cliente })
+            records_transacoes = await database.fetch_all(ULTIMAS_TRANSACOES, { "id": id_cliente })
             ultimas_transacoes = [
                 Transacao(valor=item.valor, 
                           tipo=item.tipo, 
