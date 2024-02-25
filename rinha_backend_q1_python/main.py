@@ -1,8 +1,5 @@
 from rinha_backend_q1_python.schemas import (
-    InfoSaldo,
-    ResponseTransacoes,
-    RequestTransacao, 
-    Transacao
+    RequestTransacao
 )
 
 from rinha_backend_q1_python.queries import (
@@ -22,6 +19,7 @@ from starlette.routing import Route
 
 from asyncpg.exceptions import RaiseError
 from contextlib import asynccontextmanager
+from datetime import datetime
 from pydantic import ValidationError
 
 @asynccontextmanager
@@ -71,23 +69,23 @@ async def extrato(request: Request):
 
     async with database.transaction():
         if record_cliente := await database.fetch_one(USUARIO_EXISTE, { "id": id_cliente }):
-            info_saldo = InfoSaldo(
-                total=record_cliente['saldo'],
-                limite=record_cliente['limite']
-            )
+            info_saldo = {
+                "saldo": int(record_cliente['saldo']),
+                "limite": int(record_cliente['limite']),
+                "data_extrato": str(datetime.utcnow())
+            }
             
             records_transacoes = await database.fetch_all(ULTIMAS_TRANSACOES, { "id": id_cliente })
             ultimas_transacoes = [
-                Transacao(valor=item.valor, 
-                          tipo=item.tipo, 
-                          descricao=item.descricao, 
-                          realizada_em=item.realizada_em
-                        )
+                { "valor": int(item.valor), 
+                  "tipo": str(item.tipo), 
+                  "descricao": str(item.descricao), 
+                  "realizada_em": str(item.descricao) }
                 for item in records_transacoes
             ]
             
-            info_transacoes = ResponseTransacoes(saldo=info_saldo, ultimas_transacoes=ultimas_transacoes)
-            return JSONResponse(info_transacoes.model_dump_json(), status_code=200)
+            info_transacoes = { "saldo": info_saldo, "ultimas_transacoes": ultimas_transacoes }
+            return JSONResponse(info_transacoes, status_code=200)
         else:
             return Response(f"Cliente { id_cliente } não encontrado.", status_code=404)
 
