@@ -38,7 +38,7 @@ BEGIN
 		vnovosaldo := vsaldo - uvalor;
 		
 		IF vnovosaldo < -vlimite THEN
-			vstatus := false;
+			RAISE EXCEPTION 'Transação inconsistente, saldo insuficiente';
 		
 		END IF;
 	ELSE
