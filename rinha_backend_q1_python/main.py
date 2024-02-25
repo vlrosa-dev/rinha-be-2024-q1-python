@@ -1,5 +1,4 @@
 from contextlib import asynccontextmanager
-import orjson
 from pydantic import ValidationError
 
 from rinha_backend_q1_python.db import database
