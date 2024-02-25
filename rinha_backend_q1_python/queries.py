@@ -10,5 +10,5 @@ ORDER BY c.realizada_em DESC;
 """
 
 REALIZAR_TRANSACAO = """
-SELECT * FROM realizar_transacao(:id, :valor, :tipo, :descricao)"
+SELECT * FROM realizar_transacao(:id, :valor, :tipo, :descricao)
 """

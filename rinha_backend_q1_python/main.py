@@ -20,6 +20,7 @@ from starlette.requests import Request
 from starlette.applications import Starlette
 from starlette.routing import Route
 
+from asyncpg.exceptions import RaiseError
 from contextlib import asynccontextmanager
 from pydantic import ValidationError
 
@@ -57,6 +58,10 @@ async def transacoes(request: Request):
 
             except ValidationError as error:
                 return JSONResponse({ "detail": error.json() }, status_code=422)
+            
+            except RaiseError as error:
+                if 'saldo insuficiente' in str(error):
+                    return JSONResponse({ "detail": "Transação inconsistente, saldo insuficiente" }, status_code=422)
 
 async def extrato(request: Request):
     id_cliente = request.path_params['id']
