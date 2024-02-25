@@ -17,6 +17,44 @@ CREATE TABLE IF NOT EXISTS clientes_transacoes (
     PRIMARY KEY (id)
 );
 
+CREATE OR REPLACE FUNCTION realizar_transacao(ucliente_id INT, uvalor INT, utipo CHAR(1), udescricao VARCHAR(10))
+	RETURNS TABLE(limite INT, novosaldo INT)
+	LANGUAGE plpgsql
+AS $$
+DECLARE
+	vsaldo INT;
+	vlimite INT;
+	vstatus BOOLEAN;
+	vnovosaldo INT;
+BEGIN
+	vstatus := true;
+	
+	SELECT c.limite as limite, c.saldo as saldo
+	INTO vlimite, vsaldo
+	FROM clientes as c
+	WHERE c.id = ucliente_id;
+	
+	IF utipo = 'd' THEN
+		vnovosaldo := vsaldo - uvalor;
+		
+		IF vnovosaldo < -vlimite THEN
+			vstatus := false;
+		
+		END IF;
+	ELSE
+		vnovosaldo := vsaldo + uvalor;
+	END IF;
+	
+	IF vstatus = true THEN
+		UPDATE clientes as c SET saldo = vnovosaldo WHERE c.id = ucliente_id;
+		INSERT INTO clientes_transacoes (cliente_id, valor, tipo, descricao) 
+		VALUES (ucliente_id, uvalor, utipo, udescricao);
+	END IF;
+	
+	RETURN QUERY SELECT c.limite, c.saldo FROM clientes c WHERE c.id = ucliente_id;
+END;
+$$;
+
 INSERT INTO clientes ("nome", "limite")
 VALUES
     ('grupo avanti', 1000 * 100),
