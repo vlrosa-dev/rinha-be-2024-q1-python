@@ -31,7 +31,7 @@ async def healthcheck(request):
 
 async def transacoes(request: Request):
     req_transacao_body = await request.json()
-    id_params = request.query_params['id']
+    id_cliente = request.path_params['id']
 
     try:
         transacao = RequestTransacao(**req_transacao_body)
@@ -39,7 +39,7 @@ async def transacoes(request: Request):
         return JSONResponse({ "body_error": error.json() }, status_code=422)
 
     async with database.transaction():
-        query_cliente = select([clientes.c.id, clientes.c.limite, clientes.c.saldo]).where(clientes.c.id == id_params)
+        query_cliente = select([clientes.c.id, clientes.c.limite, clientes.c.saldo]).where(clientes.c.id == id_cliente)
         row_cliente = await database.fetch_one(query_cliente)
         if not row_cliente:
             return Response(f"Cliente { id } não encontrado.", status_code=404)
@@ -53,14 +53,14 @@ async def transacoes(request: Request):
         if transacao.tipo == 'd' and novo_saldo < -row_cliente['limite']:
             raise Response("Transação inconsistente, saldo insuficiente.", status_code=422)
         
-        query_update_saldo = update(clientes).where(clientes.c.id == id)
+        query_update_saldo = update(clientes).where(clientes.c.id == id_cliente)
         await database.execute(query_update_saldo, { "saldo": novo_saldo })
 
         await database.execute(insert(clientes_transacoes).values(
             valor=transacao.valor,
             tipo=transacao.tipo,
             descricao=transacao.descricao,
-            cliente_id=id
+            cliente_id=id_cliente
         ))
     
     return JSONResponse(
@@ -71,7 +71,7 @@ async def transacoes(request: Request):
         status_code=200
     )
 
-async def extrato(request):
+async def extrato(request: Request):
     id_cliente = request.path_params['id']
 
     query_cliente = select([clientes.c.id, clientes.c.limite, clientes.c.saldo]).where(clientes.c.id == id_cliente)
