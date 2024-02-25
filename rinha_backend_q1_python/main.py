@@ -1,23 +1,37 @@
-from contextlib import asynccontextmanager
-from pydantic import ValidationError
+from rinha_backend_q1_python.models import (
+    clientes,
+    clientes_transacoes
+)
 
+from rinha_backend_q1_python.schemas import (
+    InfoSaldo,
+    ResponseTransacoes,
+    RequestTransacao, 
+    Transacao
+)
+
+from rinha_backend_q1_python.queries import (
+    USUARIO_EXISTE, 
+    TRANSACOES_CLIENTES
+)
 from rinha_backend_q1_python.db import database
-from rinha_backend_q1_python.models import clientes
-from rinha_backend_q1_python.models import clientes_transacoes
-from rinha_backend_q1_python.schemas import RequestTransacao, Transacao
-from rinha_backend_q1_python.schemas import InfoSaldo
-from rinha_backend_q1_python.schemas import ResponseTransacoes
-from rinha_backend_q1_python.queries import USUARIO_EXISTE, TRANSACOES_CLIENTES
 
-from sqlalchemy import select
-from sqlalchemy import update
-from sqlalchemy import insert
+from sqlalchemy import (
+    select,
+    update,
+    insert
+)
 
+from starlette.responses import (
+    Response,
+    JSONResponse
+)
 from starlette.requests import Request
 from starlette.applications import Starlette
-from starlette.responses import Response
-from starlette.responses import JSONResponse
 from starlette.routing import Route
+
+from contextlib import asynccontextmanager
+from pydantic import ValidationError
 
 @asynccontextmanager
 async def lifespan(app):
