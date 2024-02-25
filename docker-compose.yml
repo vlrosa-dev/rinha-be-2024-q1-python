@@ -4,7 +4,17 @@ services:
   api01: &api
     build: ./
     hostname: api01
-    restart: unless-stopped
+    restart: on-failure
+    healthcheck:
+      test: curl --fail http://localhost:8080/healthcheck || exit 1
+      interval: 5s
+      timeout: 30s
+      retries: 3
+      start_period: 60s
+    ulimits:
+      nofile:
+        soft: 100000
+        hard: 100000
     environment:
       - DB_HOSTNAME=db
     depends_on:
@@ -14,7 +24,7 @@ services:
       resources:
         limits:
           cpus: "0.2"
-          memory: "50MB"
+          memory: "120MB"
 
   api02:
     <<: *api
@@ -36,7 +46,7 @@ services:
       resources:
         limits:
           cpus: "0.25"
-          memory: "50MB"
+          memory: "100MB"
 
   db:
     image: postgres:latest
@@ -60,5 +70,5 @@ services:
     deploy:
       resources:
         limits:
-          cpus: "0.85"
-          memory: "400MB"
+          cpus: "0.55"
+          memory: "210MB"
