@@ -1,4 +1,5 @@
 from contextlib import asynccontextmanager
+import orjson
 from pydantic import ValidationError
 
 from rinha_backend_q1_python.db import database
@@ -91,7 +92,7 @@ async def extrato(request: Request):
             ]
             
             info_transacoes = ResponseTransacoes(saldo=info_saldo, ultimas_transacoes=ultimas_transacoes)
-            return JSONResponse(info_transacoes, status_code=200)
+            return JSONResponse(info_transacoes.model_dump_json(), status_code=200)
         else:
             return Response("Cliente { id } não encontrado.", status_code=404)
 
