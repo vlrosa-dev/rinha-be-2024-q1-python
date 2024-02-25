@@ -10,7 +10,6 @@ class EnumTipoTransacao(str, Enum):
     debito = 'd'
 
 class RequestTransacao(BaseModel):
-    id: int
     valor: int = Field(gt=0)
     tipo: EnumTipoTransacao = Field(description='C - Credito / D - Debito')
     descricao: str = Field(description='Motivo da transação', min_length=1, max_length=10)
