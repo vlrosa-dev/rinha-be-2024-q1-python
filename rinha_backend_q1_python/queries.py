@@ -6,7 +6,8 @@ ULTIMAS_TRANSACOES = """
 SELECT c.valor, c.tipo, c.descricao, c.realizada_em
 FROM clientes_transacoes as c
 WHERE cliente_id = :id
-ORDER BY c.realizada_em DESC;
+ORDER BY c.realizada_em DESC
+LIMIT 10;
 """
 
 REALIZAR_TRANSACAO = """
