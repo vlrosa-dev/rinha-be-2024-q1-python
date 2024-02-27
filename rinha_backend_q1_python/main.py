@@ -35,14 +35,13 @@ async def transacoes(request: Request):
     req_transacao_body = await request.json()
     id_cliente = request.path_params.get('id', None)
 
-    if id_cliente < 0 or id_cliente < 5:
+    if id_cliente < 0 or id_cliente > 5:
         return JSONResponse({'detail': 'cliente não encontrado'}, status_code=404)
     
     async with database.transaction():
         if record_cliente := await database.fetch_one(USUARIO_EXISTE, { "cliente_id": id_cliente }):
             try:
                 transacao = RequestTransacao(**req_transacao_body)
-
                 rst_transacao = await database.fetch_one(
                     query=REALIZAR_TRANSACAO,
                     values={
@@ -54,7 +53,10 @@ async def transacoes(request: Request):
                     }
                 )
 
-                return JSONResponse({ "limite": record_cliente['limite'], "saldo": rst_transacao['novosaldo'] }, status_code=200)
+                return JSONResponse(
+                    { "limite": record_cliente['limite'], 
+                      "saldo": rst_transacao['sa'] 
+                    }, status_code=200)
 
             except ValidationError as error:
                 return JSONResponse({ "detail": error.json() }, status_code=422)
