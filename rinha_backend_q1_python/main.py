@@ -29,14 +29,15 @@ DB_CONFIG = {
     'user': 'postgres',
     'password': '112131',
     'port': 5432,
-    'database': 'rinha_backend'
+    'database': 'rinha_backend',
+    "min_size": 1,
+    "max_size": 20,
+
 }
 
 @asynccontextmanager
 async def lifespan(app):
-    app.pool = await create_pool(
-        **DB_CONFIG, min_size=1, max_size=20, max_inactive_connection_lifetime=300
-    )
+    app.pool = await create_pool(**DB_CONFIG, max_inactive_connection_lifetime=300)
     yield
     app.pool.close()
 
