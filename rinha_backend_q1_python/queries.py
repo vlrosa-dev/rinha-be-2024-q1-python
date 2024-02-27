@@ -1,5 +1,5 @@
 USUARIO_EXISTE = """
-SELECT * FROM clientes WHERE id = :id;
+SELECT * FROM clientes WHERE id = :cliente_id;
 """
 
 ULTIMAS_TRANSACOES = """
@@ -11,5 +11,5 @@ LIMIT 10;
 """
 
 REALIZAR_TRANSACAO = """
-SELECT * FROM realizar_transacao(:id, :valor, :tipo, :descricao)
+SELECT * FROM realizar_transacao(:cliente_id, :valor, :tipo, :descricao, :limite)
 """
