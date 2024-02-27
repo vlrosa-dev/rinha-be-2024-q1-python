@@ -5,7 +5,8 @@ from rinha_backend_q1_python.schemas import (
 from rinha_backend_q1_python.queries import (
     USUARIO_EXISTE, 
     ULTIMAS_TRANSACOES,
-    REALIZAR_TRANSACAO
+    REALIZAR_TRANSACAO,
+    SALDO_CLIENTE
 )
 from rinha_backend_q1_python.db import database
 
@@ -71,20 +72,23 @@ async def transacoes(request: Request):
 async def extrato(request: Request):
     id_cliente = request.path_params['id']
 
+    if id_cliente < 0 or id_cliente > 5:
+        return JSONResponse({'detail': 'cliente não encontrado'}, status_code=404)
+
     async with database.transaction():
-        if record_cliente := await database.fetch_one(USUARIO_EXISTE, { "id": id_cliente }):
+        if record_cliente := await database.fetch_one(SALDO_CLIENTE, { "cliente_id": id_cliente }):
             info_saldo = {
-                "saldo": int(record_cliente['saldo']),
+                "saldo": int(record_cliente['valor']),
                 "limite": int(record_cliente['limite']),
                 "data_extrato": str(datetime.utcnow())
             }
             
-            records_transacoes = await database.fetch_all(ULTIMAS_TRANSACOES, { "id": id_cliente })
+            records_transacoes = await database.fetch_all(ULTIMAS_TRANSACOES, { "cliente_id": id_cliente })
             ultimas_transacoes = [
                 { "valor": int(item.valor), 
                   "tipo": str(item.tipo), 
                   "descricao": str(item.descricao), 
-                  "realizada_em": str(item.descricao) }
+                  "realizada_em": str(item.realizada_em) }
                 for item in records_transacoes
             ]
             
