@@ -1,38 +1,30 @@
-from rinha_backend_q1_python.db import engine_db
-from sqlalchemy.sql import func
-from sqlalchemy import text
-from sqlalchemy import (
-    Column,
-    DateTime,
-    ForeignKey,
-    Table,
-    MetaData,
-    Integer,
-    String
-)
+from pydantic import BaseModel
+from pydantic import Field
 
-metadata_obj = MetaData()
+from datetime import datetime
+from enum import Enum
+from typing import Literal
 
-clientes = Table(
-    "clientes", 
-    metadata_obj,
-    Column("id", Integer, primary_key=True, unique=True),
-    Column("nome", String(50), nullable=False),
-    Column("limite", Integer),
-    Column("saldo", Integer, server_default=text("0"))
-)
+class EnumTipoTransacao(str, Enum):
+    credito = 'c'
+    debito = 'd'
 
-clientes_transacoes = Table(
-    "clientes_transacoes",
-    metadata_obj,
-    Column("id", Integer, primary_key=True, unique=True),
-    Column("cliente_id", Integer, ForeignKey("clientes.id")),
-    Column("valor", Integer),
-    Column("tipo", String(1)),
-    Column("descricao", String(10)),
-    Column("realizada_em", DateTime, default=func.now())
-)
+class RequestTransacao(BaseModel):
+    valor: int = Field(gt=0)
+    tipo: EnumTipoTransacao = Field(description='C - Credito / D - Debito')
+    descricao: str = Field(description='Motivo da transação', min_length=1, max_length=10)
 
-if __name__ == '__main__':
-    metadata_obj.drop_all(engine_db, tables=[clientes, clientes_transacoes])
-    metadata_obj.create_all(engine_db, tables=[clientes, clientes_transacoes])
+class Transacao(BaseModel):
+    valor: int
+    tipo: Literal['c', 'd']
+    descricao: str
+    realizada_em: datetime
+
+class InfoSaldo(BaseModel):
+    total: int
+    data_extrato: datetime = Field(default_factory=datetime.utcnow)
+    limite: int
+
+class ResponseTransacoes(BaseModel):
+    saldo: InfoSaldo
+    ultimas_transacoes: list[Transacao]

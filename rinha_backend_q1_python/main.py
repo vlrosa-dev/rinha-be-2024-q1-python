@@ -1,50 +1,19 @@
-from rinha_backend_q1_python.schemas import (
-    RequestTransacao
-)
+from rinha_backend_q1_python.database import lifespan
+from rinha_backend_q1_python.models import RequestTransacao
+from rinha_backend_q1_python.queries import USUARIO_EXISTE
+from rinha_backend_q1_python.queries import ULTIMAS_TRANSACOES
+from rinha_backend_q1_python.queries import REALIZAR_TRANSACAO
+from rinha_backend_q1_python.queries import SALDO_CLIENTE
 
-from rinha_backend_q1_python.queries import (
-    USUARIO_EXISTE, 
-    ULTIMAS_TRANSACOES,
-    REALIZAR_TRANSACAO,
-    SALDO_CLIENTE
-)
-
-from starlette.responses import (
-    Response,
-    JSONResponse
-)
-from starlette.requests import Request
 from starlette.applications import Starlette
+from starlette.responses import Response
+from starlette.responses import JSONResponse
+from starlette.requests import Request
 from starlette.routing import Route
 
-from asyncpg import create_pool
 from asyncpg.exceptions import RaiseError
-
-from contextlib import asynccontextmanager
 from datetime import datetime
 from pydantic import ValidationError
-
-import logging
-
-logger = logging.getLogger()
-logger.setLevel(logging.INFO)
-
-DB_CONFIG = {
-    'host': 'db',
-    'user': 'postgres',
-    'password': '112131',
-    'port': 5432,
-    'database': 'rinha_backend',
-    "min_size": 1,
-    "max_size": 20,
-
-}
-
-@asynccontextmanager
-async def lifespan(app):
-    app.pool = await create_pool(**DB_CONFIG, max_inactive_connection_lifetime=300)
-    yield
-    app.pool.close()
 
 async def healthcheck(request):
     return Response(content='OK', status_code=200)
@@ -56,7 +25,7 @@ async def transacoes(request: Request):
     if id_cliente < 0 or id_cliente > 5:
         return JSONResponse({'detail': 'cliente não encontrado'}, status_code=404)
     
-    async with request.app.pool.acquire() as conn:
+    async with request.app.state.pool.acquire() as conn:
         if result_cliente := await conn.fetchrow(USUARIO_EXISTE, id_cliente):
             try:
                 transacao = RequestTransacao(**req_transacao_body)
@@ -95,7 +64,7 @@ async def extrato(request: Request):
     if id_cliente < 0 or id_cliente > 5:
         return JSONResponse({'detail': 'cliente não encontrado'}, status_code=404)
 
-    async with request.app.pool.acquire() as conn:
+    async with request.app.state.pool.acquire() as conn:
         if record_cliente := await conn.fetchrow(SALDO_CLIENTE, id_cliente):
             info_saldo = {
                 "saldo": int(record_cliente['valor']),
@@ -116,8 +85,6 @@ async def extrato(request: Request):
             return JSONResponse(info_transacoes, status_code=200)
         else:
             return Response(f"Cliente { id_cliente } não encontrado.", status_code=404)
-
-logging.info("Starting Starlette server!")
 
 routes = [
     Route('/healthcheck', endpoint=healthcheck, methods=['GET']),
