@@ -24,6 +24,11 @@ from contextlib import asynccontextmanager
 from datetime import datetime
 from pydantic import ValidationError
 
+import logging
+
+logger = logging.getLogger()
+logger.setLevel(logging.INFO)
+
 DB_CONFIG = {
     'host': 'db',
     'user': 'postgres',
@@ -111,6 +116,8 @@ async def extrato(request: Request):
             return JSONResponse(info_transacoes, status_code=200)
         else:
             return Response(f"Cliente { id_cliente } não encontrado.", status_code=404)
+
+logging.info("Starting Starlette server!")
 
 routes = [
     Route('/healthcheck', endpoint=healthcheck, methods=['GET']),
