@@ -1,5 +1,10 @@
 from rinha_backend_q1_python.database import lifespan
+
+from rinha_backend_q1_python.models import InfoSaldo
 from rinha_backend_q1_python.models import RequestTransacao
+from rinha_backend_q1_python.models import ResponseTransacoes
+from rinha_backend_q1_python.models import Transacao
+
 from rinha_backend_q1_python.queries import USUARIO_EXISTE
 from rinha_backend_q1_python.queries import ULTIMAS_TRANSACOES
 from rinha_backend_q1_python.queries import REALIZAR_TRANSACAO
@@ -12,7 +17,6 @@ from starlette.requests import Request
 from starlette.routing import Route
 
 from asyncpg.exceptions import RaiseError
-from datetime import datetime
 from pydantic import ValidationError
 
 async def healthcheck(request):
@@ -66,22 +70,26 @@ async def extrato(request: Request):
 
     async with request.app.state.pool.acquire() as conn:
         if record_cliente := await conn.fetchrow(SALDO_CLIENTE, id_cliente):
-            info_saldo = {
-                "saldo": int(record_cliente['valor']),
-                "limite": int(record_cliente['limite']),
-                "data_extrato": str(datetime.utcnow())
-            }
+            saldo = InfoSaldo(
+                total=record_cliente.get('valor'),
+                limite=record_cliente.get('limite')
+            )
             
             records_transacoes = await conn.fetch(ULTIMAS_TRANSACOES, id_cliente)
             ultimas_transacoes = [
-                { "valor": int(item['valor']), 
-                  "tipo": str(item['tipo']), 
-                  "descricao": str(item['descricao']), 
-                  "realizada_em": str(item['realizada_em']) }
+                Transacao(
+                    valor=item.get('valor'),
+                    tipo=item.get('tipo'),
+                    descricao=item.get('descricao'),
+                    realizada_em=item.get('realizada_em')
+                )
                 for item in records_transacoes
             ]
             
-            info_transacoes = { "saldo": info_saldo, "ultimas_transacoes": ultimas_transacoes }
+            info_transacoes = ResponseTransacoes(
+                saldo=saldo, ultimas_transacoes=ultimas_transacoes
+            ).model_dump()
+            
             return JSONResponse(info_transacoes, status_code=200)
         else:
             return Response(f"Cliente { id_cliente } não encontrado.", status_code=404)

@@ -1,4 +1,5 @@
 from pydantic import BaseModel
+from pydantic import field_serializer
 from pydantic import Field
 
 from datetime import datetime
@@ -20,10 +21,18 @@ class Transacao(BaseModel):
     descricao: str
     realizada_em: datetime
 
+    @field_serializer('realizada_em')
+    def serialize_dt_realizada(self, dt: datetime, _info):
+        return dt.strftime("%Y-%m-%d %H:%M:%S")
+
 class InfoSaldo(BaseModel):
     total: int
     data_extrato: datetime = Field(default_factory=datetime.utcnow)
     limite: int
+
+    @field_serializer('data_extrato')
+    def serialize_dt_extrato(self, dt: datetime, _info):
+        return dt.strftime("%Y-%m-%d %H:%M:%S")
 
 class ResponseTransacoes(BaseModel):
     saldo: InfoSaldo
