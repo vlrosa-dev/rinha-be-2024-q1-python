@@ -23,7 +23,7 @@ async def lifespan(app: Starlette):
         min_size=1,
         max_size=20,
         max_queries=150000,
-        max_inactive_connection_lifetime=3
+        max_inactive_connection_lifetime=100
     )
     yield
     await app.state.pool.close()
