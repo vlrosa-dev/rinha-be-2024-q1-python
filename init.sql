@@ -21,6 +21,9 @@ CREATE TABLE IF NOT EXISTS saldos (
 	CONSTRAINT "clientes_fk" FOREIGN KEY ("cliente_id") REFERENCES clientes("id")
 );
 
+CREATE INDEX index_cliente_id ON transacoes(cliente_id);
+CREATE INDEX index_realizada_em ON transacoes(realizada_em DESC);
+
 DO $$
 BEGIN
     INSERT INTO clientes (nome, limite)
