@@ -19,7 +19,7 @@ services:
       resources:
         limits:
           cpus: "0.2"
-          memory: "100B"
+          memory: "100MB"
 
   api02:
     <<: *api
