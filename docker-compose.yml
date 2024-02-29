@@ -4,6 +4,8 @@ services:
   api01: &api
     build: ./
     hostname: api01
+    env_file:
+      - ./.env
     environment:
       DATABASE_URL=${DATABASE_URL}
       DATABASE_HOST=${DATABASE_HOST}
