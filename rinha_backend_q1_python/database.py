@@ -23,7 +23,7 @@ async def lifespan(app: Starlette):
         password=DATABASE_PASSWORD,
         port=DATABASE_PORT,
         database=DATABASE_NAME,
-        min_size=1,
+        min_size=5,
         max_size=20,
         max_queries=150000,
         max_inactive_connection_lifetime=300
