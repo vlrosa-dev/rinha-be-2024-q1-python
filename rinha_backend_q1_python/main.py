@@ -16,11 +16,12 @@ from starlette.responses import JSONResponse
 from starlette.requests import Request
 from starlette.routing import Route
 
-from asyncpg.exceptions import RaiseError
-from pydantic import ValidationError
+from starlette.status import HTTP_422_UNPROCESSABLE_ENTITY
+from starlette.status import HTTP_404_NOT_FOUND
+from starlette.status import HTTP_200_OK
 
 async def healthcheck(request):
-    return Response(content='OK', status_code=200)
+    return Response(status_code=HTTP_200_OK)
 
 async def transacoes(request: Request):
     req_transacao_body = await request.json()
@@ -42,31 +43,20 @@ async def transacoes(request: Request):
                     result_cliente['limite']
                 )
 
-                return JSONResponse(
-                    { "limite": result_cliente['limite'],
-                      "saldo": result_transacao
-                    }, 
-                    status_code=200
-                )
+                response_transacao = { "limite": result_cliente['limite'], "saldo": result_transacao }
+                return JSONResponse(response_transacao, status_code=HTTP_200_OK)
 
-            except ValidationError as error:
-                return JSONResponse({ "detail": error.json() }, status_code=422)
-            
-            except RaiseError as error:
-                if 'saldo insuficiente' in str(error):
-                    return JSONResponse({ "detail": "Transação inconsistente, saldo insuficiente" }, status_code=422)
-            
-            except Exception as error:
-                return JSONResponse({ "detail": error }, status_code=422)
+            except Exception:
+                return Response(status_code=HTTP_422_UNPROCESSABLE_ENTITY)
 
         else:
-            return Response(f"Cliente { id_cliente } não encontrado.", status_code=404)
+            return Response(status_code=HTTP_404_NOT_FOUND)
         
 async def extrato(request: Request):
     id_cliente = request.path_params['id']
 
     if id_cliente < 0 or id_cliente > 5:
-        return JSONResponse({'detail': 'cliente não encontrado'}, status_code=404)
+        return Response(status_code=HTTP_404_NOT_FOUND)
 
     async with request.app.state.pool.acquire() as conn:
         if record_cliente := await conn.fetchrow(SALDO_CLIENTE, id_cliente):
@@ -89,10 +79,10 @@ async def extrato(request: Request):
             info_transacoes = ResponseTransacoes(
                 saldo=saldo, ultimas_transacoes=ultimas_transacoes
             ).model_dump()
-            
-            return JSONResponse(info_transacoes, status_code=200)
+
+            return JSONResponse(info_transacoes, status_code=HTTP_200_OK)
         else:
-            return Response(f"Cliente { id_cliente } não encontrado.", status_code=404)
+            return Response(status_code=HTTP_404_NOT_FOUND)
 
 routes = [
     Route('/healthcheck', endpoint=healthcheck, methods=['GET']),
