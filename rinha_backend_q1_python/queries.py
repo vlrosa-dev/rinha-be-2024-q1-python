@@ -19,3 +19,11 @@ SELECT s.valor, c.limite FROM clientes c
 INNER JOIN saldos s ON s.cliente_id = c.id
 WHERE c.id = $1
 """
+
+ATUALIZA_SALDO="""
+UPDATE saldos SET valor = 0;
+"""
+
+TRUNCATE_TRANSACOES="""
+TRUNCATE transacoes;
+"""
