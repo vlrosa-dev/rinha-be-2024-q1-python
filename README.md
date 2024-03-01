@@ -8,7 +8,6 @@
 - Framework: `Starlette`
 - Load Balancer: `Nginx`
 - DB: `Postgresql`
-- Pool: `Asyncpg`
 
 ## Repositório da API
 - https://github.com/vlrosa-dev/rinha-be-2024-q1-python
