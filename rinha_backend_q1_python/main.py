@@ -1,107 +1,88 @@
-from contextlib import asynccontextmanager
-from datetime import datetime
+from rinha_backend_q1_python.database import lifespan
 
-from pydantic import ValidationError
+from rinha_backend_q1_python.models import InfoSaldo
+from rinha_backend_q1_python.models import RequestTransacao
+from rinha_backend_q1_python.models import ResponseTransacoes
+from rinha_backend_q1_python.models import Transacao
 
-from rinha_backend_q1_python.db import database
-from rinha_backend_q1_python.models import clientes
-from rinha_backend_q1_python.models import clientes_transacoes
-from rinha_backend_q1_python.schemas import RequestTransacao
-from rinha_backend_q1_python.schemas import Transacao
+from rinha_backend_q1_python.queries import USUARIO_EXISTE
+from rinha_backend_q1_python.queries import ULTIMAS_TRANSACOES
+from rinha_backend_q1_python.queries import REALIZAR_TRANSACAO
+from rinha_backend_q1_python.queries import SALDO_CLIENTE
 
-from sqlalchemy import select
-from sqlalchemy import update
-from sqlalchemy import insert
-from sqlalchemy import desc
-
-from starlette.requests import Request
 from starlette.applications import Starlette
 from starlette.responses import Response
 from starlette.responses import JSONResponse
+from starlette.requests import Request
 from starlette.routing import Route
 
-@asynccontextmanager
-async def lifespan(app):
-    await database.connect()
-    yield
-    await database.disconnect()
+from starlette.status import HTTP_422_UNPROCESSABLE_ENTITY
+from starlette.status import HTTP_404_NOT_FOUND
+from starlette.status import HTTP_200_OK
 
 async def healthcheck(request):
-    return Response(content='OK', status_code=200)
+    return Response(status_code=HTTP_200_OK)
 
 async def transacoes(request: Request):
     req_transacao_body = await request.json()
-    id_params = request.query_params['id']
+    id_cliente = request.path_params.get('id', None)
 
-    try:
-        transacao = RequestTransacao(**req_transacao_body)
-    except ValidationError as error:
-        return JSONResponse({ "body_error": error.json() }, status_code=422)
-
-    async with database.transaction():
-        query_cliente = select([clientes.c.id, clientes.c.limite, clientes.c.saldo]).where(clientes.c.id == id_params)
-        row_cliente = await database.fetch_one(query_cliente)
-        if not row_cliente:
-            return Response(f"Cliente { id } não encontrado.", status_code=404)
-        
-        if transacao.tipo == 'd':
-            novo_saldo = int(row_cliente['saldo']) - int(transacao.valor)
-        
-        if transacao.tipo == 'c':
-            novo_saldo = int(row_cliente['saldo']) + int(transacao.valor)
-
-        if transacao.tipo == 'd' and novo_saldo < -row_cliente['limite']:
-            raise Response("Transação inconsistente, saldo insuficiente.", status_code=422)
-        
-        query_update_saldo = update(clientes).where(clientes.c.id == id)
-        await database.execute(query_update_saldo, { "saldo": novo_saldo })
-
-        await database.execute(insert(clientes_transacoes).values(
-            valor=transacao.valor,
-            tipo=transacao.tipo,
-            descricao=transacao.descricao,
-            cliente_id=id
-        ))
+    if id_cliente < 0 or id_cliente > 5:
+        return JSONResponse({'detail': 'cliente não encontrado'}, status_code=404)
     
-    return JSONResponse(
-        { 
-            "limite": row_cliente['limite'], 
-            "saldo": novo_saldo 
-        },
-        status_code=200
-    )
+    async with request.app.state.pool.acquire() as conn:
+        if result_cliente := await conn.fetchrow(USUARIO_EXISTE, id_cliente):
+            try:
+                transacao = RequestTransacao(**req_transacao_body)
+                result_transacao = await conn.fetchval(
+                    REALIZAR_TRANSACAO,
+                    id_cliente, 
+                    transacao.valor,
+                    transacao.tipo,
+                    transacao.descricao,
+                    result_cliente['limite']
+                )
 
-async def extrato(request):
+                response_transacao = { "limite": result_cliente['limite'], "saldo": result_transacao }
+                return JSONResponse(response_transacao, status_code=HTTP_200_OK)
+
+            except Exception:
+                return Response(status_code=HTTP_422_UNPROCESSABLE_ENTITY)
+
+        else:
+            return Response(status_code=HTTP_404_NOT_FOUND)
+        
+async def extrato(request: Request):
     id_cliente = request.path_params['id']
 
-    query_cliente = select([clientes.c.id, clientes.c.limite, clientes.c.saldo]).where(clientes.c.id == id_cliente)
-    row_cliente = await database.fetch_one(query_cliente)
-    if not row_cliente:
-        raise Response("Cliente { id } não encontrado.", status_code=404)
-    
-    query_transacao = select(
-        [
-            clientes_transacoes.c.valor, 
-            clientes_transacoes.c.tipo, 
-            clientes_transacoes.c.descricao,
-            clientes_transacoes.c.realizada_em
-        ])\
-            .where(clientes_transacoes.c.cliente_id == id_cliente)\
-            .order_by(desc(clientes_transacoes.c.realizada_em))\
-            .limit(10)
-    rows_transacoes = await database.fetch_all(query_transacao)
-    ultimas_transacoes = [ Transacao(**item) for item in rows_transacoes ]
-    
-    return JSONResponse(
-        content={
-            "saldo": {
-                "total": row_cliente["saldo"],
-                "data_extrato": str(datetime.utcnow()),
-                "limite": row_cliente["limite"]
-            }, "ultimas_transacoes": ultimas_transacoes
-        },
-        status_code=200
-    )
+    if id_cliente < 0 or id_cliente > 5:
+        return Response(status_code=HTTP_404_NOT_FOUND)
+
+    async with request.app.state.pool.acquire() as conn:
+        if record_cliente := await conn.fetchrow(SALDO_CLIENTE, id_cliente):
+            saldo = InfoSaldo(
+                total=record_cliente.get('valor'),
+                limite=record_cliente.get('limite')
+            )
+            
+            records_transacoes = await conn.fetch(ULTIMAS_TRANSACOES, id_cliente)
+            ultimas_transacoes = [
+                Transacao(
+                    valor=item.get('valor'),
+                    tipo=item.get('tipo'),
+                    descricao=item.get('descricao'),
+                    realizada_em=item.get('realizada_em')
+                )
+                for item in records_transacoes
+            ]
+            
+            info_transacoes = ResponseTransacoes(
+                saldo=saldo, ultimas_transacoes=ultimas_transacoes
+            ).model_dump()
+
+            return JSONResponse(info_transacoes, status_code=HTTP_200_OK)
+        else:
+            return Response(status_code=HTTP_404_NOT_FOUND)
 
 routes = [
     Route('/healthcheck', endpoint=healthcheck, methods=['GET']),

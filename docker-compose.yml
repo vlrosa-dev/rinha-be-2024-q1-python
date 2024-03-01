@@ -4,12 +4,17 @@ services:
   api01: &api
     build: ./
     hostname: api01
-    restart: unless-stopped
+    env_file:
+      - ./.env
     environment:
-      - DB_HOSTNAME=db
+      - DATABASE_URL=${DATABASE_URL}
+      - DATABASE_HOST=${DATABASE_HOST}
+      - DATABASE_USER=${DATABASE_USER}
+      - DATABASE_PASSWORD=${DATABASE_PASSWORD}
+      - DATABASE_PORT=${DATABASE_PORT}
+      - DATABASE_NAME=${DATABASE_NAME}
     depends_on:
-      db:
-        condition: service_healthy
+      - db
     deploy:
       resources:
         limits:
@@ -21,33 +26,35 @@ services:
     hostname: api02
   
   nginx:
-    image: nginx:latest
+    image: nginx:stable-alpine3.17-slim
     restart: unless-stopped
     volumes:
       - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    command: ["nginx-debug", "-g", "daemon off;"]
     depends_on:
-      api01:
-        condition: service_started
-      api02:
-        condition: service_started
+        - db
+        - api01
+        - api02
     ports:
       - "9999:9999"
     deploy:
       resources:
         limits:
           cpus: "0.25"
-          memory: "50MB"
+          memory: "200MB"
 
   db:
     image: postgres:latest
     hostname: db
     restart: unless-stopped
+    env_file:
+      - ./.env
     environment:
-      - POSTGRES_PASSWORD=112131
-      - POSTGRES_USER=postgres
-      - POSTGRES_DB=rinha_backend
+      - POSTGRES_DB=${DATABASE_NAME}
+      - POSTGRES_USER=${DATABASE_USER}
+      - POSTGRES_PASSWORD=${DATABASE_PASSWORD}
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready", "-d", "rinha_backend"]
+      test: ["CMD-SHELL", "pg_isready -d $${POSTGRES_DB} -U $${POSTGRES_USER}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -60,5 +67,5 @@ services:
     deploy:
       resources:
         limits:
-          cpus: "0.85"
-          memory: "400MB"
+          cpus: "0.55"
+          memory: "250MB"
